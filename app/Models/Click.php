@@ -1,5 +1,5 @@
 <?php
-// app/Models/Click.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +9,9 @@ class Click extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['link_id','clicked_at','ip','user_agent','browser','country']; // 👈 añade link_id
+    protected $fillable = [
+        'link_id','clicked_at','ip','user_agent','browser','country','referrer','referrer_host','source_tag'
+    ];
 
     protected $casts = [
         'clicked_at' => 'datetime',

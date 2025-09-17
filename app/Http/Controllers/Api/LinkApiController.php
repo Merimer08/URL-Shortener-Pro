@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Link;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class LinkApiController extends Controller
@@ -28,16 +27,15 @@ class LinkApiController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'target_url' => ['required', 'url', 'max:2000'],
+            'target_url' => ['required', 'string', 'regex:/^https?:\\/\\//i', 'max:2000'],
             'max_clicks' => ['nullable', 'integer', 'min:1'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
         // Genera un código único (7 chars alfanuméricos)
-        $code = Str::random(7);
-        while (Link::where('code', $code)->exists()) {
+        do {
             $code = Str::random(7);
-        }
+        } while (Link::where('code', $code)->exists());
 
         $link = Link::create([
             'user_id'     => $request->user()->id,
@@ -54,11 +52,10 @@ class LinkApiController extends Controller
 
     /**
      * GET /api/v1/links/{link}
-     * Muestra un link del usuario
+     * Muestra un link del usuario (autorizado por Policy en la ruta)
      */
     public function show(Link $link)
     {
-        // Si usas middleware ->can('view','link') en rutas, ya viene autorizado
         return response()->json($link);
     }
 
@@ -69,7 +66,7 @@ class LinkApiController extends Controller
     public function update(Request $request, Link $link)
     {
         $data = $request->validate([
-            'target_url' => ['required', 'url', 'max:2000'],
+            'target_url' => ['required', 'string', 'regex:/^https?:\\/\\//i', 'max:2000'],
             'max_clicks' => ['nullable', 'integer', 'min:1'],
             'expires_at' => ['nullable', 'date', 'after:now'],
             'is_active'  => ['sometimes', 'boolean'],
@@ -87,7 +84,6 @@ class LinkApiController extends Controller
     public function destroy(Link $link)
     {
         $link->delete();
-
         return response()->noContent();
     }
 
@@ -97,17 +93,34 @@ class LinkApiController extends Controller
      */
     public function stats(Link $link)
     {
-        // Si aún no tienes modelo Click, leemos directo de la tabla
-        $recentClicks = DB::table('clicks')
-            ->where('link_id', $link->id)
-            ->orderByDesc('created_at')
+        // últimos 25 clics (usa clicked_at y los campos que tienes en la tabla)
+        $recent = $link->clicks()
+            ->latest('clicked_at')
             ->limit(25)
-            ->get(['created_at', 'ip', 'referrer', 'user_agent']);
+            ->get([
+                'clicked_at',
+                'ip',
+                'user_agent',
+                'browser',
+                'country',
+                'referrer',
+                'referrer_host',
+                'source_tag',
+            ]);
+
+        // clicks por día de los últimos 7 días (incluyendo hoy)
+        $last7 = $link->clicks()
+            ->where('clicked_at', '>=', now()->subDays(6)->startOfDay())
+            ->selectRaw('DATE(clicked_at) as day, COUNT(*) as clicks')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get();
 
         return response()->json([
-            'total_clicks'   => $link->click_count,
+            'total_clicks'   => (int) $link->click_count,
             'last_access_at' => $link->last_access_at,
-            'recent_clicks'  => $recentClicks,
+            'recent_clicks'  => $recent,
+            'last_7_days'    => $last7,
         ]);
     }
 }

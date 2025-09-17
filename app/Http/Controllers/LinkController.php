@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Link;
 use Illuminate\Http\Request;
 
 class LinkController extends Controller
@@ -11,7 +12,8 @@ class LinkController extends Controller
      */
     public function index()
     {
-        //
+        $links = Link::paginate(10);
+        return view('links.index', compact('links'));
     }
 
     /**
@@ -19,7 +21,7 @@ class LinkController extends Controller
      */
     public function create()
     {
-        //
+        return view('links.create');
     }
 
     /**
@@ -27,40 +29,60 @@ class LinkController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'url' => 'required|url',
+            'title' => 'required|string|max:255',
+        ]);
+        
+        $link = Link::create($validated);
+        return redirect()->route('links.show', $link)
+            ->with('success', 'Link created successfully');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Link $link)
     {
-        //
+        return view('links.show', compact('link'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Link $link)
     {
-        //
+        return view('links.edit', compact('link'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Link $link)
     {
-        //
+        $validated = $request->validate([
+            'url' => 'required|url',
+            'title' => 'required|string|max:255',
+        ]);
+        
+        $link->update($validated);
+        return redirect()->route('links.show', $link)
+            ->with('success', 'Link updated successfully');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Link $link)
     {
-        //
+        $link->delete();
+        return redirect()->route('links.index')
+            ->with('success', 'Link deleted successfully');
     }
+
+    /**
+     * Show statistics for the specified link
+     */
     public function stats(Link $link)
 {
     // últimos 25 clics

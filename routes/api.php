@@ -5,6 +5,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Http\Controllers\Api\LinkApiController;
+// routes/api.php (fuera del grupo auth:sanctum)
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+
+Route::post('/login-token', [AuthenticatedSessionController::class, 'loginToken']);
+
+
 
 // Si no lo tienes ya:
 Route::middleware(['auth:sanctum'])->get('/user', fn (Request $r) => $r->user());
