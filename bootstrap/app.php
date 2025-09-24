@@ -3,7 +3,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\EnsureLinkIsActive;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,20 +12,20 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // 1) CORS global (imprescindible para que salgan los headers CORS)
+        // CORS global
         $middleware->use([
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
-        // 2) Sanctum "stateful" en el grupo API
-        $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        ]);
+        // En modo tokens NO necesitamos EnsureFrontendRequestsAreStateful
+        // $middleware->api(prepend: [
+        //     \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        // ]);
 
-        // 3) Aliases de middleware personalizados
+        // (Opcional) tus aliases
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
-            'ensure.link.active' => EnsureLinkIsActive::class,
+            'ensure.link.active' => \App\Http\Middleware\EnsureLinkIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

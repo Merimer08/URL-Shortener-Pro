@@ -2,18 +2,14 @@
 
 return [
 
-    'paths' => [
-        'api/*',
-        'sanctum/csrf-cookie',
-        'login',
-        'logout',
-        'user',
-    ],
+    // Solo rutas de API
+    'paths' => ['api/*'],
 
     'allowed_methods' => ['*'],
 
-    // desde tu .env → CORS_ALLOWED_ORIGINS
-    'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', '')),
+    // Desde .env → CORS_ALLOWED_ORIGINS
+    // (p.ej. "http://localhost:5173,https://url-shortener-frontend.up.railway.app")
+    'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')),
 
     'allowed_origins_patterns' => [],
 
@@ -23,6 +19,6 @@ return [
 
     'max_age' => 0,
 
-    // CLAVE para cookies cross-site (con Sanctum)
-    'supports_credentials' => true,
+    // Modo tokens → NO credenciales
+    'supports_credentials' => false,
 ];
