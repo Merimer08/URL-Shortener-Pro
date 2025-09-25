@@ -64,14 +64,19 @@ Route::post('/logout', function (Request $r) {
 
 // Rutas protegidas con token
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
-
-    // <- ESTA ES LA QUE NECESITA TU FRONT
+    // solicitada por el front
     Route::get('/user', fn (Request $r) => $r->user());
 
     Route::get('links', [LinkApiController::class, 'index']);
     Route::post('links', [LinkApiController::class, 'store']);
-    Route::get('links/{link}', [LinkApiController::class, 'show'])->can('view', 'link');
-    Route::put('links/{link}', [LinkApiController::class, 'update'])->can('update', 'link');
-    Route::delete('links/{link}', [LinkApiController::class, 'destroy'])->can('delete', 'link');
-    Route::get('links/{link}/stats', [LinkApiController::class, 'stats'])->can('view', 'link');
+
+    Route::get('links/{link}', [LinkApiController::class, 'show']);   // puedes añadir ->can('view','link') si usas Policies
+    Route::put('links/{link}', [LinkApiController::class, 'update']); // ->can('update','link')
+    Route::delete('links/{link}', [LinkApiController::class, 'destroy']); // ->can('delete','link')
+
+    Route::get('links/{link}/stats', [LinkApiController::class, 'stats']); // ->can('view','link')
+
+    // NUEVAS para soft delete flow:
+    Route::post('links/{id}/restore', [LinkApiController::class, 'restore']);     // onlyTrashed
+    Route::delete('links/{id}/force', [LinkApiController::class, 'forceDelete']); // withTrashed
 });

@@ -4,21 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-// use Illuminate\Database\Eloquent\SoftDeletes; // ← descomenta si usas soft deletes
+use Illuminate\Database\Eloquent\SoftDeletes; // 👈
 
 class Link extends Model
 {
-    use HasFactory;
-    // use SoftDeletes; // ← descomenta si tu tabla links tiene deleted_at
+    use HasFactory, SoftDeletes; // 👈
 
     protected $fillable = [
         'user_id','code','target_url','max_clicks','click_count','expires_at','is_active','last_access_at'
     ];
 
     protected $casts = [
-        'expires_at' => 'datetime',
-        'is_active' => 'boolean',
-        'last_access_at' => 'datetime',
+        'expires_at'    => 'datetime',
+        'is_active'     => 'boolean',
+        'last_access_at'=> 'datetime',
     ];
 
     public function hasExpired(): bool

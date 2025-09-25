@@ -9,20 +9,33 @@ use Illuminate\Support\Str;
 
 class LinkApiController extends Controller
 {
+    // helper simple si no usas Policies:
+    private function assertOwner(Request $request, Link $link): void
+    {
+        abort_if($link->user_id !== $request->user()->id, 403, 'Forbidden');
+    }
+
     /**
-     * GET /api/v1/links
-     * Lista los links del usuario autenticado (paginados)
+     * GET /api/v1/links?view=active|trashed|all&per_page=10&page=1
      */
     public function index(Request $request)
     {
-        return Link::where('user_id', $request->user()->id)
-            ->latest()
-            ->paginate(20);
+        $view    = $request->query('view', 'active');
+        $perPage = (int) $request->query('per_page', 10);
+
+        $query = Link::where('user_id', $request->user()->id);
+
+        if ($view === 'trashed') {
+            $query->onlyTrashed();
+        } elseif ($view === 'all') {
+            $query->withTrashed();
+        }
+
+        return $query->latest()->paginate($perPage);
     }
 
     /**
      * POST /api/v1/links
-     * Crea un nuevo link corto
      */
     public function store(Request $request)
     {
@@ -32,7 +45,6 @@ class LinkApiController extends Controller
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
-        // Genera un código único (7 chars alfanuméricos)
         do {
             $code = Str::random(7);
         } while (Link::where('code', $code)->exists());
@@ -52,19 +64,20 @@ class LinkApiController extends Controller
 
     /**
      * GET /api/v1/links/{link}
-     * Muestra un link del usuario (autorizado por Policy en la ruta)
      */
-    public function show(Link $link)
+    public function show(Request $request, Link $link)
     {
+        $this->assertOwner($request, $link);
         return response()->json($link);
     }
 
     /**
      * PUT /api/v1/links/{link}
-     * Actualiza un link del usuario
      */
     public function update(Request $request, Link $link)
     {
+        $this->assertOwner($request, $link);
+
         $data = $request->validate([
             'target_url' => ['required', 'string', 'regex:/^https?:\\/\\//i', 'max:2000'],
             'max_clicks' => ['nullable', 'integer', 'min:1'],
@@ -79,36 +92,61 @@ class LinkApiController extends Controller
 
     /**
      * DELETE /api/v1/links/{link}
-     * Elimina (soft delete si lo activas) un link del usuario
+     * Soft delete (archive)
      */
-    public function destroy(Link $link)
+    public function destroy(Request $request, Link $link)
     {
-        $link->delete();
+        $this->assertOwner($request, $link);
+        $link->delete(); // soft delete
+        return response()->noContent();
+    }
+
+    /**
+     * POST /api/v1/links/{id}/restore
+     */
+    public function restore(Request $request, $id)
+    {
+        $link = Link::onlyTrashed()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        // $this->authorize('update', $link); // si usas Policies
+        $link->restore();
+
+        return response()->json($link, 200);
+    }
+
+    /**
+     * DELETE /api/v1/links/{id}/force
+     * Borrado definitivo
+     */
+    public function forceDelete(Request $request, $id)
+    {
+        $link = Link::withTrashed()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        // $this->authorize('delete', $link); // si usas Policies
+        $link->forceDelete();
+
         return response()->noContent();
     }
 
     /**
      * GET /api/v1/links/{link}/stats
-     * Estadísticas básicas del link
      */
-    public function stats(Link $link)
+    public function stats(Request $request, Link $link)
     {
-        // últimos 25 clics (usa clicked_at y los campos que tienes en la tabla)
+        $this->assertOwner($request, $link);
+
         $recent = $link->clicks()
             ->latest('clicked_at')
             ->limit(25)
             ->get([
-                'clicked_at',
-                'ip',
-                'user_agent',
-                'browser',
-                'country',
-                'referrer',
-                'referrer_host',
-                'source_tag',
+                'clicked_at', 'ip', 'user_agent', 'browser', 'country',
+                'referrer', 'referrer_host', 'source_tag',
             ]);
 
-        // clicks por día de los últimos 7 días (incluyendo hoy)
         $last7 = $link->clicks()
             ->where('clicked_at', '>=', now()->subDays(6)->startOfDay())
             ->selectRaw('DATE(clicked_at) as day, COUNT(*) as clicks')
